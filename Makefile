@@ -7,7 +7,7 @@ BUSYBOX := busybox-1.33.1
 BUILD := build
 BUSYBOX_INITRAMFS := $(BUILD)/busybox_initramfs
 
-.PHONY: clean initramfs qemu-busybox qemu-busybox-debug
+.PHONY: clean initramfs qemu-busybox qemu-busybox-debug image
 
 all: qemu-busybox
 
@@ -45,6 +45,9 @@ qemu-fed: fedora34.qcow2
 
 qemu-fed-custom-kern: linux .inited
 	qemu-system-x86_64 -kernel build/bzImage -drive file=fedora34.qcow2,if=virtio -append "root=/dev/vda3 ro console=tty0 rd_NO_PLYMOUTH console=ttyS0,115200" -nographic
+
+image:
+	export LIBGUESTFS_BACKEND=direct; virt-builder fedora-34 --format qcow2 --output fedora34.qcow2 --root-password "password:helloworld"
 
 help:
 	$(info ==========Build things for COMP3520 assignment 1==========)

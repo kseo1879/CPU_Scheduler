@@ -19,4 +19,4 @@ chmod 666 /dev/null
 mount -t proc none /proc
 
 echo "Execing into a shell" 
-setsid cttyhack sh
+setsid /bin/cttyhack /bin/sh
