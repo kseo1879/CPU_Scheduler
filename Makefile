@@ -62,3 +62,6 @@ clean:
 	make -C $(LINUX) clean
 	rm -rf $(BUILD)
 	rm -f .inited
+
+
+# Test
