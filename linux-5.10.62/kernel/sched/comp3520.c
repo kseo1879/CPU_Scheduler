@@ -28,7 +28,11 @@ static void enqueue_task_comp3520(struct rq *rq, struct task_struct *p,
 	struct comp3520_rq comp3520_rq = rq->comp3520;
 	struct sched_comp3520_entity *se = &p->comp3520_se;
 
+	struct sched_comp3520_entity *new_sched_entity = 
+
 	add_nr_running(comp3520_rq, 1);
+
+	//hello main
 }
 
 // TODO: Complete me
