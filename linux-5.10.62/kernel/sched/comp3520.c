@@ -5,15 +5,37 @@
 
 const struct sched_class comp3520_sched_class;
 
+/**
+ * Run Queue <kernel/sched/sched.h>
+ * nr_running: total number of processes on the runqueue, including all scheduling classes;
+ * load:provides a measure for the current load of the runqueue. It is essentially proportional to the amount of processes on the queue with each process being weighted by its priority;
+ * cpu_load: keeps history of runqueue load in the past
+ * cfs and rt: embedded runqueue for CFS and real-time schedulers, respectively.
+ * curr: a pointer to the process descriptor of currently running task
+ * idle: a pointer to an idle thread-the process that starts if there is nothing to run;
+ * clock: a per-runqueue clock
+ * /
+
 // TODO: Complete me
+/* 
+Called when a task entera a runnable stat. 
+It puts the scheduling entity (task) into the run queue and increments the nr_running 
+	(number of runnable processes in a run queue variable)
+*/
 static void enqueue_task_comp3520(struct rq *rq, struct task_struct *p,
 				  int flags)
 {
 	struct comp3520_rq comp3520_rq = rq->comp3520;
 	struct sched_comp3520_entity *se = &p->comp3520_se;
+
+	add_nr_running(comp3520_rq, 1);
 }
 
 // TODO: Complete me
+/*
+When a task is no longer runnable, this function is called to keep the corresponding scheduling entity out of the run queue. 
+It also decrements the nr_running variable;
+*/
 static void dequeue_task_comp3520(struct rq *rq, struct task_struct *p,
 				  int flags)
 {
@@ -22,6 +44,10 @@ static void dequeue_task_comp3520(struct rq *rq, struct task_struct *p,
 }
 
 // TODO: Complete me
+/*
+Called when a task wants to voluntarily give up CPU, but not going out of runnable state. 
+Basically this means a dequeue followed by an enqueue.
+*/
 static void yield_task_comp3520(struct rq *rq){};
 
 // TODO: Complete me
@@ -34,6 +60,10 @@ static bool yield_to_task_comp3520(struct rq *rq, struct task_struct *p)
 }
 
 // TODO: Complete me
+/*
+This function checks if a task that entered runnable state should preempt the currently running task. 
+Called, for example, from wake_up_new_task(..);
+*/
 static void check_preempt_curr_comp3520(struct rq *rq, struct task_struct *p,
 					int wake_flags)
 {
@@ -42,6 +72,10 @@ static void check_preempt_curr_comp3520(struct rq *rq, struct task_struct *p,
 }
 
 // TODO: Complete me
+/*
+This function chooses the most appropriate task eligible to run next.
+Note, that this is not the same as enqueuing and dequeuing tasks;
+*/
 struct task_struct *pick_next_task_comp3520(struct rq *rq)
 {
 	return NULL;
@@ -63,12 +97,20 @@ static void set_next_task_comp3520(struct rq *rq, struct task_struct *p,
 }
 
 // TODO: Complete me
+/*
+Mostly called from time tick function;
+it might lead to process witch.
+This drives the running preemption
+*/
 static void task_tick_comp3520(struct rq *rq, struct task_struct *curr,
 			       int queued)
 {
 }
 
 // TODO: Complete me
+/*
+Notify the scheduler tha ta new task was spawned
+*/
 static void task_fork_comp3520(struct task_struct *p)
 {
 	struct comp3520_rq *comp3520_rq;
