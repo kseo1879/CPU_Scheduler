@@ -1,4 +1,4 @@
-//This is the main branch
+// This is the main branch
 #include "linux/list.h"
 #include "linux/types.h"
 #include "sched.h"
@@ -26,14 +26,29 @@ It puts the scheduling entity (task) into the run queue and increments the nr_ru
 static void enqueue_task_comp3520(struct rq *rq, struct task_struct *p,
 				  int flags)
 {
-	struct comp3520_rq comp3520_rq = rq->comp3520;
-	struct sched_comp3520_entity *se = &p->comp3520_se;
+	struct comp3520_rq *comp3520_rq = &rq -> comp3520;
+	struct sched_comp3520_entity *se = &p -> comp3520_se;
 
-	struct sched_comp3520_entity *new_sched_entity = 
+	// add_nr_running(comp3520_rq, 1);
+	// Adding the number of runnable state
+	rq->nr_running += 1;
+	comp3520_rq -> nr_running += 1;
 
-	add_nr_running(comp3520_rq, 1);
-
-	//hello main
+	//If there is no running task 
+	if(comp3520_rq -> curr == NULL) {
+		comp3520_rq -> curr = se;
+		//Since run_list is a doubly linked list we need to initialize the next and prev to it self. 
+		// se -> run_list.next = &(se -> run_list);
+		// se -> run_list.prev = &(se -> run_list);
+		// WRITE_ONCE(&se -> run_list.next, se -> run_list);
+		// se -> run_list.prev = &se -> run_list;
+		INIT_LIST_HEAD(&se -> run_list);
+		se -> on_rq = true;
+	} else { // We need to add the task to the queue @param (new, list)
+		list_add_tail(&(se->run_list), &(comp3520_rq->curr->run_list));
+		se -> on_rq = true;
+	}
+	// rq -> nr_running += 1;
 }
 
 // TODO: Complete me
@@ -44,8 +59,28 @@ It also decrements the nr_running variable;
 static void dequeue_task_comp3520(struct rq *rq, struct task_struct *p,
 				  int flags)
 {
-	struct comp3520_rq *comp3520_rq = &rq->comp3520;
-	struct sched_comp3520_entity *se = &p->comp3520_se;
+	struct comp3520_rq *comp3520_rq = &rq -> comp3520;
+	struct sched_comp3520_entity *se = &p -> comp3520_se;	
+
+	/**
+	 * First there will be two big cases.
+	 * First one would be the task is currently running and it needs to be dequeued
+	 * Second would be the task is currently not running but waiting in the queue
+	 */
+	if (comp3520_rq -> curr == se) {
+		// Here there is also two cases where if the item there is currently only one task running on the queue vs more than one are running
+		if(comp3520_rq -> nr_running == 1) {
+			comp3520_rq -> curr = NULL;
+		} else {
+			//we need to set the comp3520 -> curr to the next task @params (ptr, type, member)
+			comp3520_rq->curr = list_entry(comp3520_rq->curr->run_list.next, struct sched_comp3520_entity, run_list);
+		}
+	}
+	comp3520_rq -> nr_running -= 1;
+	list_del_init(&(se->run_list));
+	se -> on_rq = false;
+	rq -> nr_running -= 1;
+	
 }
 
 // TODO: Complete me
@@ -53,14 +88,16 @@ static void dequeue_task_comp3520(struct rq *rq, struct task_struct *p,
 Called when a task wants to voluntarily give up CPU, but not going out of runnable state. 
 Basically this means a dequeue followed by an enqueue.
 */
-static void yield_task_comp3520(struct rq *rq){};
+static void yield_task_comp3520(struct rq *rq)
+{
+};
 
 // TODO: Complete me
 static bool yield_to_task_comp3520(struct rq *rq, struct task_struct *p)
 {
-	struct comp3520_rq *comp3520_rq;
-	struct sched_comp3520_entity *se = &p->comp3520_se;
-
+	//We need to dequeue the task and add the task p to the begining
+	struct comp3520_rq *comp3520_rq = &rq -> comp3520;
+	struct sched_comp3520_entity *se = &p -> comp3520_se;
 	return false;
 }
 
@@ -83,7 +120,16 @@ Note, that this is not the same as enqueuing and dequeuing tasks;
 */
 struct task_struct *pick_next_task_comp3520(struct rq *rq)
 {
-	return NULL;
+	struct comp3520_rq *comp3520_rq = &rq -> comp3520;
+	struct sched_comp3520_entity *se = comp3520_rq->curr;
+	//First if there is no sched entity then it should return null
+	if(comp3520_rq -> curr == NULL) {
+		return NULL;
+	} else {
+		//Return the next task_struct of the next item of run list. 
+		struct sched_comp3520_entity *ptr = list_entry(se -> run_list.next, struct sched_comp3520_entity, run_list);
+		return list_entry(ptr, struct task_struct, comp3520_se);
+	}
 }
 
 // TODO: Complete me
@@ -110,6 +156,7 @@ This drives the running preemption
 static void task_tick_comp3520(struct rq *rq, struct task_struct *curr,
 			       int queued)
 {
+	resched_curr(rq);
 }
 
 // TODO: Complete me
@@ -147,7 +194,7 @@ static void switched_to_comp3520(struct rq *rq, struct task_struct *p)
 static unsigned int get_rr_interval_comp3520(struct rq *rq,
 					     struct task_struct *task)
 {
-	return 0;
+	return 1 / HZ;
 }
 
 // TODO: Complete me
