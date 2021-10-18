@@ -31,7 +31,8 @@ static void enqueue_task_comp3520(struct rq *rq, struct task_struct *p,
 
 	// add_nr_running(comp3520_rq, 1);
 	// Adding the number of runnable state
-	comp3520_rq -> nr_running++;
+	comp3520_rq -> nr_running += 1;
+	rq->nr_running += 1;
 
 	//If there is no running task 
 	if(comp3520_rq -> curr == NULL) {
@@ -41,7 +42,7 @@ static void enqueue_task_comp3520(struct rq *rq, struct task_struct *p,
 		se -> run_list.prev = &(se -> run_list);
 		se -> on_rq = true;
 	} else { // We need to add the task to the queue @param (new, list)
-		list_add_tail(&(se->run_list), &(comp3520_rq->curr->run_list))
+		list_add_tail(&(se->run_list), &(comp3520_rq->curr->run_list));
 		se -> on_rq = true;
 	}
 }
@@ -69,18 +70,17 @@ static void dequeue_task_comp3520(struct rq *rq, struct task_struct *p,
 			comp3520_rq -> curr == NULL;
 		} else {
 			//we need to set the comp3520 -> curr to the next task @params (ptr, type, member)
-			comp3520_rq -> curr = list_entry(comp3520_rq -> curr -> run_list.next, struct sched_comp520_entity, run_list);
+			comp3520_rq -> curr = list_entry(comp3520_rq -> curr -> run_list.next, struct sched_comp3520_entity, run_list);
 		}
-		comp3520_rq -> nr_running--;
+		
 		se -> on_rq = false;
 		list_del_init(&(se->run_list));
 	} else {
-		comp3520_rq -> nr_running--;
 		se -> on_rq = false;
 		list_del_init(&(se->run_list));
 	}
-
-	
+	comp3520_rq -> nr_running -= 1;
+	rq -> nr_running -= 1;
 }
 
 // TODO: Complete me
@@ -88,14 +88,14 @@ static void dequeue_task_comp3520(struct rq *rq, struct task_struct *p,
 Called when a task wants to voluntarily give up CPU, but not going out of runnable state. 
 Basically this means a dequeue followed by an enqueue.
 */
-static void yield_task_comp3520(struct rq *rq){};
+static void yield_task_comp3520(struct rq *rq)
+{
+
+};
 
 // TODO: Complete me
 static bool yield_to_task_comp3520(struct rq *rq, struct task_struct *p)
 {
-	struct comp3520_rq *comp3520_rq;
-	struct sched_comp3520_entity *se = &p->comp3520_se;
-
 	return false;
 }
 
@@ -125,7 +125,7 @@ struct task_struct *pick_next_task_comp3520(struct rq *rq)
 		return NULL;
 	} else {
 		//Return the next task_struct of the next item of run list. 
-		comp3520_rq -> curr = list_entry(se -> run_list.next, struct sched_comp520_entity, run_list)
+		comp3520_rq -> curr = list_entry(se -> run_list.next, struct sched_comp3520_entity, run_list);
 		return list_entry(comp3520_rq -> curr, struct task_struct, comp3520_se);
 	}
 }
