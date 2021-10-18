@@ -89,29 +89,15 @@ Basically this means a dequeue followed by an enqueue.
 */
 static void yield_task_comp3520(struct rq *rq)
 {
-	dequeue_task_comp3520(rq, rq->curr, 0);
-	enqueue_task_comp3520(rq, rq->curr, 0);
 };
 
 // TODO: Complete me
 static bool yield_to_task_comp3520(struct rq *rq, struct task_struct *p)
 {
-	//We need to dequeue the task and ass the task p to the begining
+	//We need to dequeue the task and add the task p to the begining
 	struct comp3520_rq *comp3520_rq = &rq -> comp3520;
 	struct sched_comp3520_entity *se = &p -> comp3520_se;
-
-	if(se -> on_rq) { //This means that the task is already on the list so we need to dequeue it
-		dequeue_task_comp3520(rq, p, 0);
-	}
-
-	list_add(&(se -> run_list), &(comp3520_rq -> curr -> run_list));
-	comp3520_rq -> nr_running += 1;
-	// rq -> nr_running += 1;
-
-	//Then we need to ass the current task to the end. 
-	yield_task_comp3520(rq);
-
-	return true;
+	return false;
 }
 
 // TODO: Complete me
