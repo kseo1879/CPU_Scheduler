@@ -80,6 +80,7 @@ static void dequeue_task_comp3520(struct rq *rq, struct task_struct *p,
 	list_del_init(&(se->run_list));
 	se -> on_rq = false;
 	rq -> nr_running -= 1;
+	
 }
 
 // TODO: Complete me
