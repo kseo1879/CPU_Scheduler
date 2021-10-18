@@ -4359,6 +4359,8 @@ static void put_prev_task_balance(struct rq *rq, struct task_struct *prev,
 /*
  * Pick up the highest-prio task:
  */
+extern struct task_struct *pick_next_task_comp3520(struct rq *rq);
+
 static inline struct task_struct *
 pick_next_task(struct rq *rq, struct task_struct *prev, struct rq_flags *rf)
 {
@@ -4371,9 +4373,9 @@ pick_next_task(struct rq *rq, struct task_struct *prev, struct rq_flags *rf)
 	 * higher scheduling class, because otherwise those loose the
 	 * opportunity to pull in more work from other CPUs.
 	 */
-	if (likely(prev->sched_class <= &fair_sched_class &&
-		   rq->nr_running == rq->cfs.h_nr_running)) {
-		p = pick_next_task_fair(rq, prev, rf);
+	if (likely(prev->sched_class <= &comp3520_sched_class &&
+		   rq->nr_running == rq->comp3520.nr_running)) {
+		p = pick_next_task_comp3520(rq);
 		if (unlikely(p == RETRY_TASK))
 			goto restart;
 
@@ -4842,7 +4844,7 @@ static void __setscheduler_prio(struct task_struct *p, int prio)
 	else if (rt_prio(prio))
 		p->sched_class = &rt_sched_class;
 	else
-		p->sched_class = &fair_sched_class;
+		p->sched_class = &comp3520_sched_class;
 
 	p->prio = prio;
 }

@@ -31,20 +31,24 @@ static void enqueue_task_comp3520(struct rq *rq, struct task_struct *p,
 
 	// add_nr_running(comp3520_rq, 1);
 	// Adding the number of runnable state
-	comp3520_rq -> nr_running += 1;
 	rq->nr_running += 1;
+	comp3520_rq -> nr_running += 1;
 
 	//If there is no running task 
 	if(comp3520_rq -> curr == NULL) {
 		comp3520_rq -> curr = se;
 		//Since run_list is a doubly linked list we need to initialize the next and prev to it self. 
-		se -> run_list.next = &(se -> run_list);
-		se -> run_list.prev = &(se -> run_list);
+		// se -> run_list.next = &(se -> run_list);
+		// se -> run_list.prev = &(se -> run_list);
+		// WRITE_ONCE(&se -> run_list.next, se -> run_list);
+		// se -> run_list.prev = &se -> run_list;
+		INIT_LIST_HEAD(&se -> run_list);
 		se -> on_rq = true;
 	} else { // We need to add the task to the queue @param (new, list)
 		list_add_tail(&(se->run_list), &(comp3520_rq->curr->run_list));
 		se -> on_rq = true;
 	}
+	// rq -> nr_running += 1;
 }
 
 // TODO: Complete me
@@ -56,30 +60,25 @@ static void dequeue_task_comp3520(struct rq *rq, struct task_struct *p,
 				  int flags)
 {
 	struct comp3520_rq *comp3520_rq = &rq -> comp3520;
-	struct sched_comp3520_entity *se = &p -> comp3520_se;
+	struct sched_comp3520_entity *se = &p -> comp3520_se;	
 
 	/**
 	 * First there will be two big cases.
 	 * First one would be the task is currently running and it needs to be dequeued
 	 * Second would be the task is currently not running but waiting in the queue
 	 */
-
-	if(comp3520_rq->curr == se) {
+	if (comp3520_rq -> curr == se) {
 		// Here there is also two cases where if the item there is currently only one task running on the queue vs more than one are running
 		if(comp3520_rq -> nr_running == 1) {
-			comp3520_rq -> curr == NULL;
+			comp3520_rq -> curr = NULL;
 		} else {
 			//we need to set the comp3520 -> curr to the next task @params (ptr, type, member)
-			comp3520_rq -> curr = list_entry(comp3520_rq -> curr -> run_list.next, struct sched_comp3520_entity, run_list);
+			comp3520_rq->curr = list_entry(comp3520_rq->curr->run_list.next, struct sched_comp3520_entity, run_list);
 		}
-		
-		se -> on_rq = false;
-		list_del_init(&(se->run_list));
-	} else {
-		se -> on_rq = false;
-		list_del_init(&(se->run_list));
 	}
 	comp3520_rq -> nr_running -= 1;
+	list_del_init(&(se->run_list));
+	se -> on_rq = false;
 	rq -> nr_running -= 1;
 }
 
@@ -90,13 +89,29 @@ Basically this means a dequeue followed by an enqueue.
 */
 static void yield_task_comp3520(struct rq *rq)
 {
-
+	dequeue_task_comp3520(rq, rq->curr, 0);
+	enqueue_task_comp3520(rq, rq->curr, 0);
 };
 
 // TODO: Complete me
 static bool yield_to_task_comp3520(struct rq *rq, struct task_struct *p)
 {
-	return false;
+	//We need to dequeue the task and ass the task p to the begining
+	struct comp3520_rq *comp3520_rq = &rq -> comp3520;
+	struct sched_comp3520_entity *se = &p -> comp3520_se;
+
+	if(se -> on_rq) { //This means that the task is already on the list so we need to dequeue it
+		dequeue_task_comp3520(rq, p, 0);
+	}
+
+	list_add(&(se -> run_list), &(comp3520_rq -> curr -> run_list));
+	comp3520_rq -> nr_running += 1;
+	// rq -> nr_running += 1;
+
+	//Then we need to ass the current task to the end. 
+	yield_task_comp3520(rq);
+
+	return true;
 }
 
 // TODO: Complete me
@@ -121,12 +136,12 @@ struct task_struct *pick_next_task_comp3520(struct rq *rq)
 	struct comp3520_rq *comp3520_rq = &rq -> comp3520;
 	struct sched_comp3520_entity *se = comp3520_rq->curr;
 	//First if there is no sched entity then it should return null
-	if(comp3520_rq->curr == NULL) {
+	if(comp3520_rq -> curr == NULL) {
 		return NULL;
 	} else {
 		//Return the next task_struct of the next item of run list. 
-		comp3520_rq -> curr = list_entry(se -> run_list.next, struct sched_comp3520_entity, run_list);
-		return list_entry(comp3520_rq -> curr, struct task_struct, comp3520_se);
+		struct sched_comp3520_entity *ptr = list_entry(se -> run_list.next, struct sched_comp3520_entity, run_list);
+		return list_entry(ptr, struct task_struct, comp3520_se);
 	}
 }
 
@@ -192,7 +207,7 @@ static void switched_to_comp3520(struct rq *rq, struct task_struct *p)
 static unsigned int get_rr_interval_comp3520(struct rq *rq,
 					     struct task_struct *task)
 {
-	return 1/HZ;
+	return 1 / HZ;
 }
 
 // TODO: Complete me
