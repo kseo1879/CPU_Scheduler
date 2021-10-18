@@ -1,0 +1,17 @@
+{
+    "configurations": [
+        {
+            "name": "Linux",
+            "includePath": [
+                "${default}",
+                "${workspaceFolder}/linux-5.10.62/include",
+                "${workspaceFolder}/linux-5.10.62"
+            ],
+            "compilerPath": "/home/linuxbrew/.linuxbrew/bin/gcc",
+            "cStandard": "gnu11",
+            "cppStandard": "gnu++98",
+            "intelliSenseMode": "linux-gcc-x64"
+        }
+    ],
+    "version": 4
+}
