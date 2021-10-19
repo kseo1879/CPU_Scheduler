@@ -15,40 +15,53 @@ const struct sched_class comp3520_sched_class;
  * curr: a pointer to the process descriptor of currently running task
  * idle: a pointer to an idle thread-the process that starts if there is nothing to run;
  * clock: a per-runqueue clock
- * /
+ */
+static void put_task_queue(struct rq *rq, struct task_struct *p, int flags, int se_num) {
+	struct comp3520_rq *comp3520_rq = &rq -> cmp3520;
+	struct sched_comp3520_entity *task_se = &p -> comp3520_se;
+	struct sched_comp3520_entity *se;
+	
+
+	switch(se_num) {
+		case 1:
+			se = comp3520_rq -> first_prio;
+		case 2:
+			se = comp3520_rq -> second_prio;
+		case 3:
+			se = comp3520_rq -> third_prio;
+	}
+
+	// add_nr_running(comp3520_rq, 1);
+	// Adding the number of runnable state
+	rq -> nr_running += 1;
+	comp3520_rq -> nr_running += 1;
+
+	//If there is no running task 
+	if(se == NULL) {
+		se = task_se;
+		//Since run_list is a doubly linked list we need to initialize the next and prev to it self. 
+		INIT_LIST_HEAD(&task_se -> run_list);
+		task_se -> on_rq = true;
+	} else { // We need to add the task to the queue @param (new, list)
+		list_add_tail(&(task_se->run_list), &(se->run_list));
+		task_se -> on_rq = true;
+	}
+	task_se -> prio_queue_num = se_num;
+}
 
 // TODO: Complete me
 /* 
 Called when a task entera a runnable stat. 
 It puts the scheduling entity (task) into the run queue and increments the nr_running 
 	(number of runnable processes in a run queue variable)
+
+In the multi-level feedback queue this will be used to add the item to the top priority item of the list
 */
 static void enqueue_task_comp3520(struct rq *rq, struct task_struct *p,
 				  int flags)
 {
-	struct comp3520_rq *comp3520_rq = &rq -> comp3520;
-	struct sched_comp3520_entity *se = &p -> comp3520_se;
-
-	// add_nr_running(comp3520_rq, 1);
-	// Adding the number of runnable state
-	rq->nr_running += 1;
-	comp3520_rq -> nr_running += 1;
-
-	//If there is no running task 
-	if(comp3520_rq -> curr == NULL) {
-		comp3520_rq -> curr = se;
-		//Since run_list is a doubly linked list we need to initialize the next and prev to it self. 
-		// se -> run_list.next = &(se -> run_list);
-		// se -> run_list.prev = &(se -> run_list);
-		// WRITE_ONCE(&se -> run_list.next, se -> run_list);
-		// se -> run_list.prev = &se -> run_list;
-		INIT_LIST_HEAD(&se -> run_list);
-		se -> on_rq = true;
-	} else { // We need to add the task to the queue @param (new, list)
-		list_add_tail(&(se->run_list), &(comp3520_rq->curr->run_list));
-		se -> on_rq = true;
-	}
-	// rq -> nr_running += 1;
+	//We need to add the item in the first priority queue since it's a newly comming task
+	put_task_queue(rq, p, flags, 1);
 }
 
 // TODO: Complete me
@@ -132,14 +145,12 @@ struct task_struct *pick_next_task_comp3520(struct rq *rq)
 	}
 }
 
-// TODO: Complete me
 static void put_prev_task_comp3520(struct rq *rq, struct task_struct *prev)
 {
 	struct comp3520_rq *comp3520_rq;
 	struct sched_comp3520_entity *se = &prev->comp3520_se;
 }
 
-// TODO: Complete me
 static void set_next_task_comp3520(struct rq *rq, struct task_struct *p,
 				   bool first)
 {
@@ -150,7 +161,7 @@ static void set_next_task_comp3520(struct rq *rq, struct task_struct *p,
 // TODO: Complete me
 /*
 Mostly called from time tick function;
-it might lead to process witch.
+it might lead to process switch.
 This drives the running preemption
 */
 static void task_tick_comp3520(struct rq *rq, struct task_struct *curr,
@@ -168,7 +179,8 @@ static void task_fork_comp3520(struct task_struct *p)
 	struct comp3520_rq *comp3520_rq;
 	struct sched_comp3520_entity *se = &p->comp3520_se;
 }
-// TODO: Complete me
+
+
 static void prio_changed_comp3520(struct rq *rq, struct task_struct *p,
 				  int oldprio)
 {
@@ -191,13 +203,18 @@ static void switched_to_comp3520(struct rq *rq, struct task_struct *p)
 }
 
 // TODO: Complete me
+/**
+ * 	if (rq->cfs.load.weight)
+		rr_interval = NS_TO_JIFFIES(sched_slice(cfs_rq_of(se), se));
+	this is what get_rr_interval_comp3520 returns. It is returning Jifflies. for example is HZ is 1000 in Jifflies it is 0.001 second.  
+	In the multilayer feedback queue it will return the currently running tasks run queue's second. 
+ */
 static unsigned int get_rr_interval_comp3520(struct rq *rq,
 					     struct task_struct *task)
 {
 	return 1 / HZ;
 }
 
-// TODO: Complete me
 static void update_curr_comp3520(struct rq *rq)
 {
 }
@@ -247,8 +264,12 @@ const struct sched_class
 // TODO: Complete me
 void init_comp3520_rq(struct comp3520_rq *comp3520_rq)
 {
+	//Initialize the runqueue
 	comp3520_rq->nr_running = 0;
 	comp3520_rq->curr = NULL;
+	comp3520_rq->nr_running_queue[0] = 0;
+	comp3520_rq->nr_running_queue[1] = 0;
+	comp3520_rq->nr_running_queue[2] = 0;
 	// Don't forget to initialize the list comp3520 list
 }
 

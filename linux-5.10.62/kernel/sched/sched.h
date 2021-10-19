@@ -620,6 +620,11 @@ struct comp3520_rq {
 	struct sched_comp3520_entity *curr;
 
 	// Feel free to add more here later
+	// first_prio has the highest priority and the rest gets lower
+	struct sched_comp3520_entity *first_prio;
+	struct sched_comp3520_entity *second_prio;
+	struct sched_comp3520_entity *third_prio;
+	unsigned int nr_running_queue[3];
 };
 
 static inline int rt_bandwidth_enabled(void)
