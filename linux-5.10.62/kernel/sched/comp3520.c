@@ -4,6 +4,13 @@
 #include "sched.h"
 #include "pelt.h"
 
+#define TICK_COUNT 2
+#define FIRST_PRIO_TICK_COUNT (TICK_COUNT)
+#define SECOND_PRIO_TICK_COUNT (TICK_COUNT * 2)
+#define THIRD_PRIO_TICK_COUNT (TICK_COUNT * 4)
+//This is the global tick_count where all of the processes gets promoted
+#define PROMOTE_TICK_COUNT (TICK_COUNT * 8)
+
 const struct sched_class comp3520_sched_class;
 
 /**
@@ -16,37 +23,44 @@ const struct sched_class comp3520_sched_class;
  * idle: a pointer to an idle thread-the process that starts if there is nothing to run;
  * clock: a per-runqueue clock
  */
-static void put_task_queue(struct rq *rq, struct task_struct *p, int flags, int se_num) {
-	struct comp3520_rq *comp3520_rq = &rq -> cmp3520;
-	struct sched_comp3520_entity *task_se = &p -> comp3520_se;
-	struct sched_comp3520_entity *se;
-	
 
-	switch(se_num) {
+static void put_task_queue(struct rq *rq, struct task_struct *p, int flags,
+			   int se_num)
+{
+	struct comp3520_rq *comp3520_rq = &rq->comp3520;
+	struct sched_comp3520_entity *task_se = &p->comp3520_se;
+	struct sched_comp3520_entity **rq_se;
+	switch (se_num) {
 		case 1:
-			se = comp3520_rq -> first_prio;
-		case 2:
-			se = comp3520_rq -> second_prio;
+			rq_se = &comp3520_rq->first_prio;
+			break;
+		case 2: 
+			rq_se = &comp3520_rq->second_prio;
+			break;
 		case 3:
-			se = comp3520_rq -> third_prio;
+			rq_se = &comp3520_rq->third_prio;
+			break;
 	}
-
+	//If there is no running task
+	if (*rq_se == NULL) {
+		*rq_se = task_se;
+		//Since run_list is a doubly linked list we need to initialize the next and prev to it self.
+		INIT_LIST_HEAD(&task_se->run_list);
+		task_se->on_rq = true;
+	} else { // We need to add the task to the queue @param (new, list)
+		list_add_tail(&(task_se->run_list), &((*rq_se)->run_list));
+		task_se->on_rq = true;
+	}
 	// add_nr_running(comp3520_rq, 1);
 	// Adding the number of runnable state
-	rq -> nr_running += 1;
-	comp3520_rq -> nr_running += 1;
+	rq->nr_running += 1;
+	comp3520_rq->nr_running += 1;
+	comp3520_rq->nr_running_queue[se_num - 1] += 1;
+	// printk("It's the queue number%d: %d\n", se_num, comp3520_rq->nr_running_queue[se_num - 1]);
+	// printk("%d = %d + %d + %d\n", comp3520_rq->nr_running, comp3520_rq->nr_running_queue[0], comp3520_rq->nr_running_queue[1], comp3520_rq->nr_running_queue[2]);
 
-	//If there is no running task 
-	if(se == NULL) {
-		se = task_se;
-		//Since run_list is a doubly linked list we need to initialize the next and prev to it self. 
-		INIT_LIST_HEAD(&task_se -> run_list);
-		task_se -> on_rq = true;
-	} else { // We need to add the task to the queue @param (new, list)
-		list_add_tail(&(task_se->run_list), &(se->run_list));
-		task_se -> on_rq = true;
-	}
-	task_se -> prio_queue_num = se_num;
+	task_se->prio_queue_num = se_num;
+	task_se->tick_count = 0;
 }
 
 // TODO: Complete me
@@ -72,28 +86,44 @@ It also decrements the nr_running variable;
 static void dequeue_task_comp3520(struct rq *rq, struct task_struct *p,
 				  int flags)
 {
-	struct comp3520_rq *comp3520_rq = &rq -> comp3520;
-	struct sched_comp3520_entity *se = &p -> comp3520_se;	
+	struct comp3520_rq *comp3520_rq = &rq->comp3520;
+	struct sched_comp3520_entity *task_se = &p->comp3520_se;
+	struct sched_comp3520_entity **rq_se;
 
-	/**
-	 * First there will be two big cases.
-	 * First one would be the task is currently running and it needs to be dequeued
-	 * Second would be the task is currently not running but waiting in the queue
-	 */
-	if (comp3520_rq -> curr == se) {
+	//Value from 1 to 3
+	int prio_queue_num = task_se->prio_queue_num;
+	switch (prio_queue_num) {
+		case 1:
+			rq_se = &comp3520_rq->first_prio;
+			break;
+		case 2:
+			rq_se = &comp3520_rq->second_prio;
+			break;
+		case 3:
+			rq_se = &comp3520_rq->third_prio;
+			break;
+	}
+
+	//This means that the task is currently running
+	if (*rq_se == task_se) {
 		// Here there is also two cases where if the item there is currently only one task running on the queue vs more than one are running
-		if(comp3520_rq -> nr_running == 1) {
-			comp3520_rq -> curr = NULL;
+		if (comp3520_rq->nr_running_queue[prio_queue_num - 1] == 1) {
+			*rq_se = NULL;
 		} else {
 			//we need to set the comp3520 -> curr to the next task @params (ptr, type, member)
-			comp3520_rq->curr = list_entry(comp3520_rq->curr->run_list.next, struct sched_comp3520_entity, run_list);
+			*rq_se = list_entry(comp3520_rq->first_prio->run_list.next, struct sched_comp3520_entity, run_list);
 		}
 	}
-	comp3520_rq -> nr_running -= 1;
-	list_del_init(&(se->run_list));
-	se -> on_rq = false;
+
 	rq -> nr_running -= 1;
-	
+	comp3520_rq -> nr_running -= 1;  
+	comp3520_rq -> nr_running_queue[prio_queue_num - 1] -= 1;
+
+	//Set it to the value that is invalid
+	task_se -> prio_queue_num = -1;
+	task_se -> tick_count = 0;
+	task_se -> on_rq = false;
+	list_del_init(&(task_se -> run_list));
 }
 
 // TODO: Complete me
@@ -101,16 +131,16 @@ static void dequeue_task_comp3520(struct rq *rq, struct task_struct *p,
 Called when a task wants to voluntarily give up CPU, but not going out of runnable state. 
 Basically this means a dequeue followed by an enqueue.
 */
-static void yield_task_comp3520(struct rq *rq)
-{
+static void yield_task_comp3520(struct rq *rq){
+
 };
 
 // TODO: Complete me
 static bool yield_to_task_comp3520(struct rq *rq, struct task_struct *p)
 {
 	//We need to dequeue the task and add the task p to the begining
-	struct comp3520_rq *comp3520_rq = &rq -> comp3520;
-	struct sched_comp3520_entity *se = &p -> comp3520_se;
+	struct comp3520_rq *comp3520_rq = &rq->comp3520;
+	struct sched_comp3520_entity *se = &p->comp3520_se;
 	return false;
 }
 
@@ -130,19 +160,36 @@ static void check_preempt_curr_comp3520(struct rq *rq, struct task_struct *p,
 /*
 This function chooses the most appropriate task eligible to run next.
 Note, that this is not the same as enqueuing and dequeuing tasks;
+
+In the multilevel feed back queue we need to pick the task that is in the highest level of priority
 */
 struct task_struct *pick_next_task_comp3520(struct rq *rq)
 {
-	struct comp3520_rq *comp3520_rq = &rq -> comp3520;
-	struct sched_comp3520_entity *se = comp3520_rq->curr;
-	//First if there is no sched entity then it should return null
-	if(comp3520_rq -> curr == NULL) {
+	struct comp3520_rq *comp3520_rq = &rq->comp3520;
+	struct sched_comp3520_entity **rq_se;
+
+	if (comp3520_rq->nr_running == 0) {
 		return NULL;
-	} else {
-		//Return the next task_struct of the next item of run list. 
-		struct sched_comp3520_entity *ptr = list_entry(se -> run_list.next, struct sched_comp3520_entity, run_list);
-		return list_entry(ptr, struct task_struct, comp3520_se);
 	}
+
+	int i = 0;
+	for (i = 0; i < 3; i++) {
+		if (comp3520_rq->nr_running_queue[i] != 0) {
+			switch (i) {
+			case 0:
+				rq_se = &comp3520_rq->first_prio;
+				break;
+			case 1:
+				rq_se = &comp3520_rq->second_prio;
+				break;
+			case 2:
+				rq_se = &comp3520_rq->third_prio;
+				break;
+			}
+		}
+	}
+	struct sched_comp3520_entity *ptr = list_entry((*rq_se)->run_list.next, struct sched_comp3520_entity, run_list);
+	return list_entry(ptr, struct task_struct, comp3520_se);
 }
 
 static void put_prev_task_comp3520(struct rq *rq, struct task_struct *prev)
@@ -158,6 +205,35 @@ static void set_next_task_comp3520(struct rq *rq, struct task_struct *p,
 	struct sched_comp3520_entity *se = &p->comp3520_se;
 }
 
+static void promote_queue(struct rq *rq)
+{
+	struct comp3520_rq *comp3520_rq = &rq->comp3520;
+	int i;
+	// printk("Global Tick %d\n\n\n\n\n\n\n\n", comp3520_rq->global_tick_count);
+
+	if(comp3520_rq -> second_prio != NULL) {
+		for(i = 0; i < comp3520_rq -> nr_running_queue[1]; i ++) {
+			struct task_struct *ptr = list_entry(comp3520_rq->second_prio, struct task_struct, comp3520_se);
+			dequeue_task_comp3520(rq, ptr, 0);
+			enqueue_task_comp3520(rq, ptr, 0);
+
+		}
+	}
+	// printk("Global Tick %d\n\n\n\n\n\n\n\n", comp3520_rq->global_tick_count);
+	int j;
+	if(comp3520_rq -> third_prio != NULL) {
+		for(j = 0; j < comp3520_rq -> nr_running_queue[2]; j ++) {
+			struct task_struct *ptr = list_entry(comp3520_rq->third_prio, struct task_struct, comp3520_se);
+			dequeue_task_comp3520(rq, ptr, 0);
+			enqueue_task_comp3520(rq, ptr, 0);
+		}
+	}
+	// printk("Global Tick %d\n\n\n\n\n\n\n\n", comp3520_rq->global_tick_count);
+
+	comp3520_rq -> global_tick_count = 0;
+	return;
+}
+
 // TODO: Complete me
 /*
 Mostly called from time tick function;
@@ -167,7 +243,47 @@ This drives the running preemption
 static void task_tick_comp3520(struct rq *rq, struct task_struct *curr,
 			       int queued)
 {
-	resched_curr(rq);
+	struct comp3520_rq *comp3520_rq = &rq->comp3520;
+	struct sched_comp3520_entity *task_se = &curr->comp3520_se;
+	struct sched_comp3520_entity **rq_se;
+
+	//Pick the current priority queue
+	int prio_queue_num = task_se->prio_queue_num;
+	int allowed_tick_count = 0;
+	int next_queue_num = -1;
+
+	switch (prio_queue_num) {
+		case 1:
+			rq_se = &comp3520_rq->first_prio;
+			allowed_tick_count = FIRST_PRIO_TICK_COUNT;
+			next_queue_num = 2;
+			break;
+		case 2:
+			rq_se = &comp3520_rq->second_prio;
+			allowed_tick_count = SECOND_PRIO_TICK_COUNT;
+			next_queue_num = 3;
+			break;
+		case 3:
+			rq_se = &comp3520_rq->third_prio;
+			allowed_tick_count = THIRD_PRIO_TICK_COUNT;
+			next_queue_num = 3; //Since there is no more queue that has lower priority
+			break;
+	}
+
+	//Increments the tickcount for the tasks
+	comp3520_rq -> global_tick_count ++;
+	task_se -> tick_count ++;
+
+	if(comp3520_rq -> global_tick_count >= PROMOTE_TICK_COUNT) {
+		promote_queue(rq);
+		return;
+	}
+
+	if(task_se -> tick_count >= allowed_tick_count) {
+		dequeue_task_comp3520(rq, curr, queued);
+		put_task_queue(rq, curr, queued, next_queue_num);
+		resched_curr(rq);
+	}
 }
 
 // TODO: Complete me
@@ -179,7 +295,6 @@ static void task_fork_comp3520(struct task_struct *p)
 	struct comp3520_rq *comp3520_rq;
 	struct sched_comp3520_entity *se = &p->comp3520_se;
 }
-
 
 static void prio_changed_comp3520(struct rq *rq, struct task_struct *p,
 				  int oldprio)
@@ -212,11 +327,22 @@ static void switched_to_comp3520(struct rq *rq, struct task_struct *p)
 static unsigned int get_rr_interval_comp3520(struct rq *rq,
 					     struct task_struct *task)
 {
+	//This will return the allowed tickcount for the current queue
+	int queue_num = task->comp3520_se.prio_queue_num;
+	switch (queue_num) {
+		case 1:
+			return FIRST_PRIO_TICK_COUNT;
+		case 2:
+			return SECOND_PRIO_TICK_COUNT;
+		case 3:
+			return THIRD_PRIO_TICK_COUNT;
+	}
 	return 1 / HZ;
 }
 
 static void update_curr_comp3520(struct rq *rq)
 {
+	return;
 }
 
 const struct sched_class
@@ -266,10 +392,13 @@ void init_comp3520_rq(struct comp3520_rq *comp3520_rq)
 {
 	//Initialize the runqueue
 	comp3520_rq->nr_running = 0;
-	comp3520_rq->curr = NULL;
 	comp3520_rq->nr_running_queue[0] = 0;
 	comp3520_rq->nr_running_queue[1] = 0;
 	comp3520_rq->nr_running_queue[2] = 0;
+	comp3520_rq->first_prio = NULL;
+	comp3520_rq->second_prio = NULL;
+	comp3520_rq->third_prio = NULL;
+	comp3520_rq->global_tick_count = 0;
 	// Don't forget to initialize the list comp3520 list
 }
 

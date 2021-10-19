@@ -497,7 +497,7 @@ struct sched_comp3520_entity {
 	bool on_rq;
 	// on cpu, off cpu info here
 	int prio_queue_num;
-	unsigned long priority_boost_timeout;
+	int tick_count;
 	// Don't worry about this
 	struct sched_statistics statistics;
 
