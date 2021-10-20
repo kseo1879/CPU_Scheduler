@@ -41,7 +41,7 @@ qemu-busybox-debug: linux initramfs .inited
 	(cd build && qemu-system-x86_64 -kernel bzImage -initrd busybox_initramfs.cpio.gz -append "init=/bin/sh nokaslr console=ttyS0" -nographic -s -S)
 
 qemu-fed: fedora34.qcow2
-	qemu-system-x86_64 -m 2G fedora34.qcow2 -nographic
+	qemu-system-x86_64 -m 4G fedora34.qcow2 -nographic
 
 qemu-fed-custom-kern: linux .inited
 	qemu-system-x86_64 -kernel build/bzImage -drive file=fedora34.qcow2,if=virtio -append "root=/dev/vda3 ro console=tty0 rd_NO_PLYMOUTH console=ttyS0,115200" -nographic
