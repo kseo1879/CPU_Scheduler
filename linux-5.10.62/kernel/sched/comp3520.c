@@ -17,19 +17,16 @@ const struct sched_class comp3520_sched_class;
  * clock: a per-runqueue clock
  * /
 
-// TODO: Complete me
-/* 
-Called when a task entera a runnable stat. 
-It puts the scheduling entity (task) into the run queue and increments the nr_running 
-	(number of runnable processes in a run queue variable)
-*/
-static void enqueue_task_comp3520(struct rq *rq, struct task_struct *p,
-				  int flags)
-{
-	struct comp3520_rq *comp3520_rq = &rq -> comp3520;
+
+/** 
+ * Called when a task entera a runnable stat. 
+ * It puts the scheduling entity (task) into the run queue and increments the nr_running 
+ * 	(number of runnable processes in a run queue variable)
+ */
+static void enqueue_task_comp3520(struct rq *rq, struct task_struct *p, int flags) {
+	struct comp3520_rq *comp3520_rq = &(rq -> comp3520);
 	struct sched_comp3520_entity *se = &p -> comp3520_se;
 
-	// add_nr_running(comp3520_rq, 1);
 	// Adding the number of runnable state
 	rq->nr_running += 1;
 	comp3520_rq -> nr_running += 1;
@@ -38,29 +35,21 @@ static void enqueue_task_comp3520(struct rq *rq, struct task_struct *p,
 	if(comp3520_rq -> curr == NULL) {
 		comp3520_rq -> curr = se;
 		//Since run_list is a doubly linked list we need to initialize the next and prev to it self. 
-		// se -> run_list.next = &(se -> run_list);
-		// se -> run_list.prev = &(se -> run_list);
-		// WRITE_ONCE(&se -> run_list.next, se -> run_list);
-		// se -> run_list.prev = &se -> run_list;
 		INIT_LIST_HEAD(&se -> run_list);
 		se -> on_rq = true;
 	} else { // We need to add the task to the queue @param (new, list)
-		list_add_tail(&(se->run_list), &(comp3520_rq->curr->run_list));
+		list_add_tail(&(se -> run_list), &(comp3520_rq -> curr -> run_list));
 		se -> on_rq = true;
 	}
-	// rq -> nr_running += 1;
 }
 
-// TODO: Complete me
-/*
-When a task is no longer runnable, this function is called to keep the corresponding scheduling entity out of the run queue. 
-It also decrements the nr_running variable;
-*/
-static void dequeue_task_comp3520(struct rq *rq, struct task_struct *p,
-				  int flags)
-{
-	struct comp3520_rq *comp3520_rq = &rq -> comp3520;
-	struct sched_comp3520_entity *se = &p -> comp3520_se;	
+/**
+ * When a task is no longer runnable, this function is called to keep the corresponding scheduling entity out of the run queue. 
+ * It also decrements the nr_running variable;
+ */
+static void dequeue_task_comp3520(struct rq *rq, struct task_struct *p, int flags) {
+	struct comp3520_rq *comp3520_rq = &(rq -> comp3520);
+	struct sched_comp3520_entity *se = &(p -> comp3520_se);	
 
 	/**
 	 * First there will be two big cases.
@@ -73,133 +62,122 @@ static void dequeue_task_comp3520(struct rq *rq, struct task_struct *p,
 			comp3520_rq -> curr = NULL;
 		} else {
 			//we need to set the comp3520 -> curr to the next task @params (ptr, type, member)
-			comp3520_rq->curr = list_entry(comp3520_rq->curr->run_list.next, struct sched_comp3520_entity, run_list);
+			comp3520_rq->curr = list_entry(comp3520_rq -> curr -> run_list.next, struct sched_comp3520_entity, run_list);
 		}
 	}
 	comp3520_rq -> nr_running -= 1;
-	list_del_init(&(se->run_list));
+	list_del_init(&(se -> run_list));
 	se -> on_rq = false;
 	rq -> nr_running -= 1;
-	
 }
 
-// TODO: Complete me
-/*
-Called when a task wants to voluntarily give up CPU, but not going out of runnable state. 
-Basically this means a dequeue followed by an enqueue.
-*/
-static void yield_task_comp3520(struct rq *rq)
-{
+/**
+ * Called when a task wants to voluntarily give up CPU, but not going out of runnable state.
+ * Basically this means a dequeue followed by an enqueue
+ */
+static void yield_task_comp3520(struct rq *rq) {
+	struct comp3520_rq *comp3520_rq = &(rq -> comp3520);
+	struct sched_comp3520_entity *se = comp3520_rq -> curr;
+
+	//It is just dequeueing and enqueuing the task. It doesn't have to stop the process.
+	dequeue_task_comp3520(rq, list_entry(se, struct task_struct, comp3520_se), 0);
+	enqueue_task_comp3520(rq, list_entry(se, struct task_struct, comp3520_se), 0);
+
+	return;
 };
 
-// TODO: Complete me
-static bool yield_to_task_comp3520(struct rq *rq, struct task_struct *p)
-{
-	//We need to dequeue the task and add the task p to the begining
-	struct comp3520_rq *comp3520_rq = &rq -> comp3520;
-	struct sched_comp3520_entity *se = &p -> comp3520_se;
+/**
+ * I believe round-robin doesn't really have to consider yield to task
+ */
+static bool yield_to_task_comp3520(struct rq *rq, struct task_struct *p) {
 	return false;
 }
 
-// TODO: Complete me
-/*
-This function checks if a task that entered runnable state should preempt the currently running task. 
-Called, for example, from wake_up_new_task(..);
-*/
-static void check_preempt_curr_comp3520(struct rq *rq, struct task_struct *p,
-					int wake_flags)
-{
+/**
+ * This function checks if a task that entered runnable state should preempt the currently running task.
+ * Called, for example, from wake_up_new_task(..);
+ */
+static void check_preempt_curr_comp3520(struct rq *rq, struct task_struct *p, int wake_flags) {
 	struct comp3520_rq *comp3520_rq;
-	struct sched_comp3520_entity *se = &p->comp3520_se;
+	struct sched_comp3520_entity *se = &(p -> comp3520_se);
+	return;
 }
 
-// TODO: Complete me
-/*
-This function chooses the most appropriate task eligible to run next.
-Note, that this is not the same as enqueuing and dequeuing tasks;
-*/
-struct task_struct *pick_next_task_comp3520(struct rq *rq)
-{
-	struct comp3520_rq *comp3520_rq = &rq -> comp3520;
-	struct sched_comp3520_entity *se = comp3520_rq->curr;
+/**
+ * This function chooses the most appropriate task eligible to run next.
+ * Note, that this is not the same as enqueuing and dequeuing tasks
+ */
+struct task_struct *pick_next_task_comp3520(struct rq *rq) {
+	struct comp3520_rq *comp3520_rq = &(rq -> comp3520);
+	struct sched_comp3520_entity *se = comp3520_rq -> curr;
+
 	//First if there is no sched entity then it should return null
 	if(comp3520_rq -> curr == NULL) {
 		return NULL;
 	} else {
 		//Return the next task_struct of the next item of run list. 
 		struct sched_comp3520_entity *ptr = list_entry(se -> run_list.next, struct sched_comp3520_entity, run_list);
+
+		//Now just return the task_structure of that had sched_comp3520_entity ptr as a member
 		return list_entry(ptr, struct task_struct, comp3520_se);
 	}
 }
 
-// TODO: Complete me
-static void put_prev_task_comp3520(struct rq *rq, struct task_struct *prev)
-{
+static void put_prev_task_comp3520(struct rq *rq, struct task_struct *prev) {
 	struct comp3520_rq *comp3520_rq;
-	struct sched_comp3520_entity *se = &prev->comp3520_se;
+	struct sched_comp3520_entity *se = &(prev -> comp3520_se);
+	return;
 }
 
-// TODO: Complete me
-static void set_next_task_comp3520(struct rq *rq, struct task_struct *p,
-				   bool first)
-{
+static void set_next_task_comp3520(struct rq *rq, struct task_struct *p, bool first) {
 	struct comp3520_rq *comp3520_rq;
-	struct sched_comp3520_entity *se = &p->comp3520_se;
+	struct sched_comp3520_entity *se = &(p -> comp3520_se);
+	return;
 }
 
-// TODO: Complete me
-/*
-Mostly called from time tick function;
-it might lead to process witch.
-This drives the running preemption
-*/
-static void task_tick_comp3520(struct rq *rq, struct task_struct *curr,
-			       int queued)
-{
+/**
+ * Mostly called from time tick function;
+ * it might lead to process witch.
+ * This drives the running preemption
+ */
+static void task_tick_comp3520(struct rq *rq, struct task_struct *curr, int queued) {
+	//This function will enforce that pick_next_task to be called
 	resched_curr(rq);
+	return;
 }
 
-// TODO: Complete me
-/*
-Notify the scheduler tha ta new task was spawned
-*/
-static void task_fork_comp3520(struct task_struct *p)
-{
+/**
+ * Notify the scheduler tha ta new task was spawned
+ */
+static void task_fork_comp3520(struct task_struct *p) {
 	struct comp3520_rq *comp3520_rq;
-	struct sched_comp3520_entity *se = &p->comp3520_se;
-}
-// TODO: Complete me
-static void prio_changed_comp3520(struct rq *rq, struct task_struct *p,
-				  int oldprio)
-{
-	struct comp3520_rq *comp3520_rq;
-	struct sched_comp3520_entity *se = &p->comp3520_se;
+	struct sched_comp3520_entity *se = &(p -> comp3520_se);
 }
 
-// TODO: Complete me
-static void switched_from_comp3520(struct rq *rq, struct task_struct *p)
-{
+static void prio_changed_comp3520(struct rq *rq, struct task_struct *p, int oldprio) {
 	struct comp3520_rq *comp3520_rq;
-	struct sched_comp3520_entity *se = &p->comp3520_se;
+	struct sched_comp3520_entity *se = &(p -> comp3520_se);
 }
 
-// TODO: Complete me
-static void switched_to_comp3520(struct rq *rq, struct task_struct *p)
-{
+static void switched_from_comp3520(struct rq *rq, struct task_struct *p) {
 	struct comp3520_rq *comp3520_rq;
-	struct sched_comp3520_entity *se = &p->comp3520_se;
+	struct sched_comp3520_entity *se = &(p -> comp3520_se);
+	return;
 }
 
-// TODO: Complete me
-static unsigned int get_rr_interval_comp3520(struct rq *rq,
-					     struct task_struct *task)
-{
+static void switched_to_comp3520(struct rq *rq, struct task_struct *p) {
+	struct comp3520_rq *comp3520_rq;
+	struct sched_comp3520_entity *se = &(p -> comp3520_se);
+	return;
+}
+
+static unsigned int get_rr_interval_comp3520(struct rq *rq, struct task_struct *task) {
+	//This set's to interval of the rr
 	return 1 / HZ;
 }
 
-// TODO: Complete me
-static void update_curr_comp3520(struct rq *rq)
-{
+static void update_curr_comp3520(struct rq *rq) {
+	return;
 }
 
 const struct sched_class
@@ -245,8 +223,7 @@ const struct sched_class
 	};
 
 // TODO: Complete me
-void init_comp3520_rq(struct comp3520_rq *comp3520_rq)
-{
+void init_comp3520_rq(struct comp3520_rq *comp3520_rq) {
 	comp3520_rq->nr_running = 0;
 	comp3520_rq->curr = NULL;
 	// Don't forget to initialize the list comp3520 list
