@@ -173,18 +173,18 @@ struct task_struct *pick_next_task_comp3520(struct rq *rq)
 	}
 
 	int i = 0;
-	for (i = 0; i < 3; i++) {
-		if (comp3520_rq->nr_running_queue[i] != 0) {
-			switch (i) {
-			case 0:
-				rq_se = &comp3520_rq->first_prio;
-				break;
-			case 1:
-				rq_se = &comp3520_rq->second_prio;
-				break;
-			case 2:
-				rq_se = &comp3520_rq->third_prio;
-				break;
+	for(i = 0; i < 3; i++) {
+		if(comp3520_rq->nr_running_queue[i] != 0) {
+			switch(i) {
+				case 0:
+					rq_se = &comp3520_rq->first_prio;
+					break;
+				case 1:
+					rq_se = &comp3520_rq->second_prio;
+					break;
+				case 2:
+					rq_se = &comp3520_rq->third_prio;
+					break;
 			}
 		}
 	}
