@@ -8,8 +8,7 @@
 #define FIRST_PRIO_TICK_COUNT (TICK_COUNT)
 #define SECOND_PRIO_TICK_COUNT (TICK_COUNT * 2)
 #define THIRD_PRIO_TICK_COUNT (TICK_COUNT * 4)
-//This is the global tick_count where all of the processes gets promoted
-#define PROMOTE_TICK_COUNT (TICK_COUNT * 8)
+#define PROMOTE_TICK_COUNT (TICK_COUNT * 8) //This is the global tick_count where all of the processes gets promoted
 
 const struct sched_class comp3520_sched_class;
 
@@ -24,83 +23,82 @@ const struct sched_class comp3520_sched_class;
  * clock: a per-runqueue clock
  */
 
-static void put_task_queue(struct rq *rq, struct task_struct *p, int flags,
-			   int se_num)
-{
-	struct comp3520_rq *comp3520_rq = &rq->comp3520;
-	struct sched_comp3520_entity *task_se = &p->comp3520_se;
-	struct sched_comp3520_entity **rq_se;
+
+/**
+ * This will put the task into the queue base on the schedule entity number
+ * This function will not only be used for enqueuing the task but also help when promoting the lower priority queues to higher priority
+ */
+static void put_task_queue(struct rq *rq, struct task_struct *p, int flags, int se_num) {
+	struct comp3520_rq *comp3520_rq = &(rq -> comp3520);
+	struct sched_comp3520_entity *task_se = &(p -> comp3520_se);
+	struct sched_comp3520_entity **rq_se; //This variable will be used to store the address of the address of the shed_entity
+
+	//se_num is refering to the priority number
 	switch (se_num) {
 		case 1:
-			rq_se = &comp3520_rq->first_prio;
+			rq_se = &(comp3520_rq -> first_prio);
 			break;
 		case 2: 
-			rq_se = &comp3520_rq->second_prio;
+			rq_se = &(comp3520_rq -> second_prio);
 			break;
 		case 3:
-			rq_se = &comp3520_rq->third_prio;
+			rq_se = &(comp3520_rq -> third_prio);
 			break;
 	}
+
 	//If there is no running task
 	if (*rq_se == NULL) {
 		*rq_se = task_se;
 		//Since run_list is a doubly linked list we need to initialize the next and prev to it self.
-		INIT_LIST_HEAD(&task_se->run_list);
-		task_se->on_rq = true;
+		INIT_LIST_HEAD(&(task_se -> run_list));
+		task_se -> on_rq = true;
 	} else { // We need to add the task to the queue @param (new, list)
-		list_add_tail(&(task_se->run_list), &((*rq_se)->run_list));
+		list_add_tail(&(task_se -> run_list), &((*rq_se) -> run_list));
 		task_se->on_rq = true;
 	}
-	// add_nr_running(comp3520_rq, 1);
-	// Adding the number of runnable state
+	
+	//Update the running process
 	rq->nr_running += 1;
 	comp3520_rq->nr_running += 1;
-	comp3520_rq->nr_running_queue[se_num - 1] += 1;
-	// printk("It's the queue number%d: %d\n", se_num, comp3520_rq->nr_running_queue[se_num - 1]);
-	// printk("%d = %d + %d + %d\n", comp3520_rq->nr_running, comp3520_rq->nr_running_queue[0], comp3520_rq->nr_running_queue[1], comp3520_rq->nr_running_queue[2]);
-
+	comp3520_rq->nr_running_queue[se_num-1] += 1;
+	
+	//Update the in comming task
 	task_se->prio_queue_num = se_num;
 	task_se->tick_count = 0;
 }
 
-// TODO: Complete me
-/* 
-Called when a task entera a runnable stat. 
-It puts the scheduling entity (task) into the run queue and increments the nr_running 
-	(number of runnable processes in a run queue variable)
-
-In the multi-level feedback queue this will be used to add the item to the top priority item of the list
-*/
-static void enqueue_task_comp3520(struct rq *rq, struct task_struct *p,
-				  int flags)
-{
+/**
+ * Called when a task entera a runnable stat. 
+ * It puts the scheduling entity (task) into the run queue and increments the nr_running 
+ * 	(number of runnable processes in a run queue variable)
+ * 
+ * In the multi-level feedback queue this will be used to add the item to the top priority item of the list
+ */
+static void enqueue_task_comp3520(struct rq *rq, struct task_struct *p, int flags) {
 	//We need to add the item in the first priority queue since it's a newly comming task
 	put_task_queue(rq, p, flags, 1);
 }
 
-// TODO: Complete me
-/*
-When a task is no longer runnable, this function is called to keep the corresponding scheduling entity out of the run queue. 
-It also decrements the nr_running variable;
-*/
-static void dequeue_task_comp3520(struct rq *rq, struct task_struct *p,
-				  int flags)
-{
-	struct comp3520_rq *comp3520_rq = &rq->comp3520;
-	struct sched_comp3520_entity *task_se = &p->comp3520_se;
+/**
+ * When a task is no longer runnable, this function is called to keep the corresponding scheduling entity out of the run queue. 
+ * It also decrements the nr_running variable;
+ */
+static void dequeue_task_comp3520(struct rq *rq, struct task_struct *p, int flags) {
+	struct comp3520_rq *comp3520_rq = &(rq -> comp3520);
+	struct sched_comp3520_entity *task_se = &(p -> comp3520_se);
 	struct sched_comp3520_entity **rq_se;
 
 	//Value from 1 to 3
-	int prio_queue_num = task_se->prio_queue_num;
+	int prio_queue_num = task_se -> prio_queue_num;
 	switch (prio_queue_num) {
 		case 1:
-			rq_se = &comp3520_rq->first_prio;
+			rq_se = &(comp3520_rq -> first_prio);
 			break;
 		case 2:
-			rq_se = &comp3520_rq->second_prio;
+			rq_se = &(comp3520_rq -> second_prio);
 			break;
 		case 3:
-			rq_se = &comp3520_rq->third_prio;
+			rq_se = &(comp3520_rq -> third_prio);
 			break;
 	}
 
@@ -115,6 +113,7 @@ static void dequeue_task_comp3520(struct rq *rq, struct task_struct *p,
 		}
 	}
 
+	//Update the number of running tasks
 	rq -> nr_running -= 1;
 	comp3520_rq -> nr_running -= 1;  
 	comp3520_rq -> nr_running_queue[prio_queue_num - 1] -= 1;
@@ -126,145 +125,141 @@ static void dequeue_task_comp3520(struct rq *rq, struct task_struct *p,
 	list_del_init(&(task_se -> run_list));
 }
 
-// TODO: Complete me
-/*
-Called when a task wants to voluntarily give up CPU, but not going out of runnable state. 
-Basically this means a dequeue followed by an enqueue.
-*/
-static void yield_task_comp3520(struct rq *rq){
+/**
+ * Called when a task wants to voluntarily give up CPU, but not going out of runnable state. 
+ * Basically this means a dequeue followed by an enqueue.
+ */
+static void yield_task_comp3520(struct rq *rq) {
+	struct task_struct *task = rq -> curr;
+	int prio = task -> comp3520_se.prio_queue_num;
 
+	//Dequeue the task and enqueue it on the same previous priority level
+	dequeue_task_comp3520(rq, task, 0);
+	put_task_queue(rq, task, 0, prio);
 };
 
-// TODO: Complete me
-static bool yield_to_task_comp3520(struct rq *rq, struct task_struct *p)
-{
+static bool yield_to_task_comp3520(struct rq *rq, struct task_struct *p) {
 	//We need to dequeue the task and add the task p to the begining
-	struct comp3520_rq *comp3520_rq = &rq->comp3520;
-	struct sched_comp3520_entity *se = &p->comp3520_se;
+	struct comp3520_rq *comp3520_rq = &(rq -> comp3520);
+	struct sched_comp3520_entity *se = &(p -> comp3520_se);
 	return false;
 }
 
-// TODO: Complete me
-/*
-This function checks if a task that entered runnable state should preempt the currently running task. 
-Called, for example, from wake_up_new_task(..);
-*/
-static void check_preempt_curr_comp3520(struct rq *rq, struct task_struct *p,
-					int wake_flags)
-{
+/**
+ * This function checks if a task that entered runnable state should preempt the currently running task. 
+ * Called, for example, from wake_up_new_task(..);
+ * 
+ * This deosn't have to be implemented since pick next task will always return the task in the highest priority queue
+ */
+static void check_preempt_curr_comp3520(struct rq *rq, struct task_struct *p, int wake_flags) {
 	struct comp3520_rq *comp3520_rq;
-	struct sched_comp3520_entity *se = &p->comp3520_se;
+	struct sched_comp3520_entity *se = &(p -> comp3520_se);
+	return;
 }
 
-// TODO: Complete me
-/*
-This function chooses the most appropriate task eligible to run next.
-Note, that this is not the same as enqueuing and dequeuing tasks;
-
-In the multilevel feed back queue we need to pick the task that is in the highest level of priority
-*/
-struct task_struct *pick_next_task_comp3520(struct rq *rq)
-{
-	struct comp3520_rq *comp3520_rq = &rq->comp3520;
+/**
+ * This function chooses the most appropriate task eligible to run next.
+ * Note, that this is not the same as enqueuing and dequeuing tasks;
+ * In the multilevel feed back queue we need to pick the task that is in the highest level of priority
+ */
+struct task_struct *pick_next_task_comp3520(struct rq *rq) {
+	struct comp3520_rq *comp3520_rq = &(rq -> comp3520);
 	struct sched_comp3520_entity **rq_se;
 
-	if (comp3520_rq->nr_running == 0) {
+	//If there is no task then it should return NULL
+	if (comp3520_rq -> nr_running == 0) {
 		return NULL;
 	}
 
 	int i = 0;
 	for(i = 0; i < 3; i++) {
-		if(comp3520_rq->nr_running_queue[i] != 0) {
+		if(comp3520_rq -> nr_running_queue[i] != 0) {
 			switch(i) {
 				case 0:
-					rq_se = &comp3520_rq->first_prio;
+					rq_se = &(comp3520_rq -> first_prio);
 					break;
 				case 1:
-					rq_se = &comp3520_rq->second_prio;
+					rq_se = &(comp3520_rq -> second_prio);
 					break;
 				case 2:
-					rq_se = &comp3520_rq->third_prio;
+					rq_se = &(comp3520_rq -> third_prio);
 					break;
 			}
 		}
 	}
-	struct sched_comp3520_entity *ptr = list_entry((*rq_se)->run_list.next, struct sched_comp3520_entity, run_list);
+	
+
+	struct sched_comp3520_entity *ptr = list_entry((*rq_se) -> run_list.next, struct sched_comp3520_entity, run_list);
 	return list_entry(ptr, struct task_struct, comp3520_se);
 }
 
-static void put_prev_task_comp3520(struct rq *rq, struct task_struct *prev)
-{
+static void put_prev_task_comp3520(struct rq *rq, struct task_struct *prev) {
 	struct comp3520_rq *comp3520_rq;
-	struct sched_comp3520_entity *se = &prev->comp3520_se;
+	struct sched_comp3520_entity *se = &(prev -> comp3520_se);
 }
 
-static void set_next_task_comp3520(struct rq *rq, struct task_struct *p,
-				   bool first)
-{
+static void set_next_task_comp3520(struct rq *rq, struct task_struct *p, bool first) {
 	struct comp3520_rq *comp3520_rq;
-	struct sched_comp3520_entity *se = &p->comp3520_se;
+	struct sched_comp3520_entity *se = &(p -> comp3520_se);
+	return;
 }
 
-static void promote_queue(struct rq *rq)
-{
-	struct comp3520_rq *comp3520_rq = &rq->comp3520;
+/**
+ * This function will help tack_tick. 
+ * IT will promote the queue as long as the tick count has exceeded the limit
+ */
+static void promote_queue(struct rq *rq) {
+	struct comp3520_rq *comp3520_rq = &(rq -> comp3520);
+	
 	int i;
-	// printk("Global Tick %d\n\n\n\n\n\n\n\n", comp3520_rq->global_tick_count);
-
 	if(comp3520_rq -> second_prio != NULL) {
 		for(i = 0; i < comp3520_rq -> nr_running_queue[1]; i ++) {
-			struct task_struct *ptr = list_entry(comp3520_rq->second_prio, struct task_struct, comp3520_se);
+			struct task_struct *ptr = list_entry(comp3520_rq -> second_prio, struct task_struct, comp3520_se);
 			dequeue_task_comp3520(rq, ptr, 0);
 			enqueue_task_comp3520(rq, ptr, 0);
-
 		}
 	}
-	// printk("Global Tick %d\n\n\n\n\n\n\n\n", comp3520_rq->global_tick_count);
+
 	int j;
 	if(comp3520_rq -> third_prio != NULL) {
 		for(j = 0; j < comp3520_rq -> nr_running_queue[2]; j ++) {
-			struct task_struct *ptr = list_entry(comp3520_rq->third_prio, struct task_struct, comp3520_se);
+			struct task_struct *ptr = list_entry(comp3520_rq -> third_prio, struct task_struct, comp3520_se);
 			dequeue_task_comp3520(rq, ptr, 0);
 			enqueue_task_comp3520(rq, ptr, 0);
 		}
 	}
-	// printk("Global Tick %d\n\n\n\n\n\n\n\n", comp3520_rq->global_tick_count);
-
 	comp3520_rq -> global_tick_count = 0;
 	return;
 }
 
-// TODO: Complete me
-/*
-Mostly called from time tick function;
-it might lead to process switch.
-This drives the running preemption
-*/
-static void task_tick_comp3520(struct rq *rq, struct task_struct *curr,
-			       int queued)
-{
-	struct comp3520_rq *comp3520_rq = &rq->comp3520;
-	struct sched_comp3520_entity *task_se = &curr->comp3520_se;
+/**
+ * Mostly called from time tick function
+ * it might lead to process switch.
+ * This drives the running preemption
+ */
+static void task_tick_comp3520(struct rq *rq, struct task_struct *curr, int queued) {
+	struct comp3520_rq *comp3520_rq = &(rq -> comp3520);
+	struct sched_comp3520_entity *task_se = &(curr -> comp3520_se);
 	struct sched_comp3520_entity **rq_se;
 
 	//Pick the current priority queue
-	int prio_queue_num = task_se->prio_queue_num;
+	int prio_queue_num = task_se -> prio_queue_num;
 	int allowed_tick_count = 0;
 	int next_queue_num = -1;
 
 	switch (prio_queue_num) {
 		case 1:
-			rq_se = &comp3520_rq->first_prio;
+			rq_se = &(comp3520_rq -> first_prio);
 			allowed_tick_count = FIRST_PRIO_TICK_COUNT;
 			next_queue_num = 2;
 			break;
 		case 2:
-			rq_se = &comp3520_rq->second_prio;
+			rq_se = &(comp3520_rq -> second_prio);
 			allowed_tick_count = SECOND_PRIO_TICK_COUNT;
 			next_queue_num = 3;
 			break;
 		case 3:
-			rq_se = &comp3520_rq->third_prio;
+			rq_se = &(comp3520_rq -> third_prio);
 			allowed_tick_count = THIRD_PRIO_TICK_COUNT;
 			next_queue_num = 3; //Since there is no more queue that has lower priority
 			break;
@@ -286,49 +281,39 @@ static void task_tick_comp3520(struct rq *rq, struct task_struct *curr,
 	}
 }
 
-// TODO: Complete me
-/*
-Notify the scheduler tha ta new task was spawned
-*/
-static void task_fork_comp3520(struct task_struct *p)
-{
+/**
+ * Notify the scheduler tha ta new task was spawned
+ */
+static void task_fork_comp3520(struct task_struct *p) {
 	struct comp3520_rq *comp3520_rq;
-	struct sched_comp3520_entity *se = &p->comp3520_se;
+	struct sched_comp3520_entity *se = &(p -> comp3520_se);
+	return;
 }
 
-static void prio_changed_comp3520(struct rq *rq, struct task_struct *p,
-				  int oldprio)
-{
+static void prio_changed_comp3520(struct rq *rq, struct task_struct *p, int oldprio) {
 	struct comp3520_rq *comp3520_rq;
-	struct sched_comp3520_entity *se = &p->comp3520_se;
+	struct sched_comp3520_entity *se = &(p -> comp3520_se);
 }
 
-// TODO: Complete me
-static void switched_from_comp3520(struct rq *rq, struct task_struct *p)
-{
+static void switched_from_comp3520(struct rq *rq, struct task_struct *p) {
 	struct comp3520_rq *comp3520_rq;
-	struct sched_comp3520_entity *se = &p->comp3520_se;
+	struct sched_comp3520_entity *se = &(p -> comp3520_se);
 }
 
-// TODO: Complete me
-static void switched_to_comp3520(struct rq *rq, struct task_struct *p)
-{
+static void switched_to_comp3520(struct rq *rq, struct task_struct *p) {
 	struct comp3520_rq *comp3520_rq;
-	struct sched_comp3520_entity *se = &p->comp3520_se;
+	struct sched_comp3520_entity *se = &(p -> comp3520_se);
 }
 
-// TODO: Complete me
 /**
  * 	if (rq->cfs.load.weight)
-		rr_interval = NS_TO_JIFFIES(sched_slice(cfs_rq_of(se), se));
-	this is what get_rr_interval_comp3520 returns. It is returning Jifflies. for example is HZ is 1000 in Jifflies it is 0.001 second.  
-	In the multilayer feedback queue it will return the currently running tasks run queue's second. 
+ * 		rr_interval = NS_TO_JIFFIES(sched_slice(cfs_rq_of(se), se));
+ * this is what get_rr_interval_comp3520 returns. It is returning Jifflies. for example is HZ is 1000 in Jifflies it is 0.001 second.  
+ * In the multilayer feedback queue it will return the currently running tasks run queue's second. 
  */
-static unsigned int get_rr_interval_comp3520(struct rq *rq,
-					     struct task_struct *task)
-{
+static unsigned int get_rr_interval_comp3520(struct rq *rq, struct task_struct *task) {
 	//This will return the allowed tickcount for the current queue
-	int queue_num = task->comp3520_se.prio_queue_num;
+	int queue_num = task -> comp3520_se.prio_queue_num;
 	switch (queue_num) {
 		case 1:
 			return FIRST_PRIO_TICK_COUNT;
@@ -340,8 +325,7 @@ static unsigned int get_rr_interval_comp3520(struct rq *rq,
 	return 1 / HZ;
 }
 
-static void update_curr_comp3520(struct rq *rq)
-{
+static void update_curr_comp3520(struct rq *rq) {
 	return;
 }
 
