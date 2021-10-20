@@ -253,21 +253,21 @@ static void task_tick_comp3520(struct rq *rq, struct task_struct *curr,
 	int next_queue_num = -1;
 
 	switch (prio_queue_num) {
-		case 1:
-			rq_se = &comp3520_rq->first_prio;
-			allowed_tick_count = FIRST_PRIO_TICK_COUNT;
-			next_queue_num = 2;
-			break;
-		case 2:
-			rq_se = &comp3520_rq->second_prio;
-			allowed_tick_count = SECOND_PRIO_TICK_COUNT;
-			next_queue_num = 3;
-			break;
-		case 3:
-			rq_se = &comp3520_rq->third_prio;
-			allowed_tick_count = THIRD_PRIO_TICK_COUNT;
-			next_queue_num = 3; //Since there is no more queue that has lower priority
-			break;
+	case 1:
+		rq_se = &comp3520_rq->first_prio;
+		allowed_tick_count = FIRST_PRIO_TICK_COUNT;
+		next_queue_num = 2;
+		break;
+	case 2:
+		rq_se = &comp3520_rq->second_prio;
+		allowed_tick_count = SECOND_PRIO_TICK_COUNT;
+		next_queue_num = 3;
+		break;
+	case 3:
+		rq_se = &comp3520_rq->third_prio;
+		allowed_tick_count = THIRD_PRIO_TICK_COUNT;
+		next_queue_num = 3; //Since there is no more queue that has lower priority
+		break;
 	}
 
 	//Increments the tickcount for the tasks
