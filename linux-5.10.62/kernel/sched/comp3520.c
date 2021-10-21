@@ -8,7 +8,7 @@
 #define FIRST_PRIO_TICK_COUNT (TICK_COUNT)
 #define SECOND_PRIO_TICK_COUNT (TICK_COUNT * 2)
 #define THIRD_PRIO_TICK_COUNT (TICK_COUNT * 4)
-#define PROMOTE_TICK_COUNT (TICK_COUNT * 8) //This is the global tick_count where all of the processes gets promoted
+#define PROMOTE_TICK_COUNT (TICK_COUNT * 128) //This is the global tick_count where all of the processes gets promoted
 
 const struct sched_class comp3520_sched_class;
 
